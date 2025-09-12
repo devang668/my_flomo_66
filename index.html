@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>本地私人助理</title>
+    <style>
+        /* --- 全局样式和变量 --- */
+        :root {
+            --bg-color: #f7f7f7;
+            --card-color: #ffffff;
+            --text-color: #333;
+            --primary-color: #007aff;
+            --border-color: #e0e0e0;
+            --shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+        body {
+            font-family: var(--font-family);
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        /* --- 主应用容器 --- */
+        .app-container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 85vh;
+        }
+
+        /* --- 头部和导航 --- */
+        header {
+            padding: 20px 25px;
+            background-color: var(--card-color);
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.8em;
+            color: var(--text-color);
+        }
+        nav {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        nav button {
+            background: #f0f0f0;
+            border: none;
+            color: #555;
+            padding: 10px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.95em;
+            font-weight: 500;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        nav button.active, nav button:hover {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        /* --- 主内容区域 --- */
+        main {
+            padding: 25px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* --- 笔记模块 --- */
+        .note-input-container {
+            margin-bottom: 25px;
+        }
+        #note-input {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            line-height: 1.6;
+            resize: vertical;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        #note-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.15);
+        }
+        .note-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 10px;
+        }
+        #save-note-btn {
+            padding: 10px 20px;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #save-note-btn:hover {
+            background-color: #0056b3;
+        }
+        .note-card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .note-card .content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.7;
+        }
+        .note-card .meta {
+            font-size: 0.8em;
+            color: #999;
+            margin-top: 12px;
+            text-align: right;
+        }
+        .note-card .tag {
+            color: var(--primary-color);
+            font-weight: 500;
+            background-color: rgba(0, 122, 255, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
+        /* --- AI 对话模块 --- */
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        #chat-history {
+            flex-grow: 1;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .message {
+            padding: 10px 15px;
+            border-radius: 18px;
+            max-width: 80%;
+            word-wrap: break-word;
+            line-height: 1.5;
+        }
+        .message.user {
+            background-color: var(--primary-color);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .message.bot {
+            background-color: #e9e9eb;
+            color: var(--text-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .message.bot.thinking::after {
+            content: '...';
+            display: inline-block;
+            animation: thinking 1s infinite;
+        }
+        @keyframes thinking {
+            0% { content: '.'; }
+            33% { content: '..'; }
+            66% { content: '...'; }
+        }
+
+        .chat-input-container { display: flex; }
+        #chat-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px 0 0 8px;
+            font-size: 1em;
+            outline: none;
+        }
+        #send-chat-btn {
+            padding: 10px 20px;
+            border: 1px solid var(--primary-color);
+            background: var(--primary-color);
+            color: white;
+            cursor: pointer;
+            font-weight: 500;
+            border-radius: 0 8px 8px 0;
+            transition: background-color 0.2s;
+        }
+        #send-chat-btn:hover {
+            background-color: #0056b3;
+        }
+        #send-chat-btn:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+            border-color: #a0a0a0;
+        }
+
+        /* --- 设置模块 --- */
+        .setting-item { margin-bottom: 25px; }
+        .setting-item label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+        .setting-item input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .setting-item .hint {
+            font-size: 0.85em;
+            color: #777;
+            margin-top: 8px;
+        }
+        .setting-item button {
+             padding: 10px 15px;
+             background-color: #f0f0f0;
+             color: #333;
+             border: 1px solid #ccc;
+             border-radius: 8px;
+             cursor: pointer;
+             font-weight: 500;
+             margin-right: 10px;
+        }
+        .setting-item button.primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+        #file-sync-status {
+            font-weight: 500;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            margin-top: 10px;
+            border: 1px solid var(--border-color);
+        }
+        #file-sync-status.linked {
+             background-color: #e7f5e8;
+             color: #28a745;
+             border-color: #28a745;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <header>
+            <h1>本地私人助理</h1>
+            <nav>
+                <button id="nav-notes" class="active">灵感笔记</button>
+                <button id="nav-chat">AI 对话</button>
+                <button id="nav-settings">设置</button>
+            </nav>
+        </header>
+
+        <main>
+            <!-- 笔记模块 -->
+            <div id="notes-view" class="view active">
+                <div class="note-input-container">
+                    <textarea id="note-input" placeholder="输入你的想法... 支持 #标签 语法... 按 Ctrl+Enter 快速保存"></textarea>
+                    <div class="note-actions">
+                        <button id="save-note-btn">记录灵感</button>
+                    </div>
+                </div>
+                <div id="notes-list"></div>
+            </div>
+
+            <!-- AI对话模块 -->
+            <div id="chat-view" class="view">
+                <div class="chat-container">
+                    <div id="chat-history">
+                        <div class="message bot">你好！我是你的AI助手。请先在“设置”中配置你的API密钥。</div>
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" id="chat-input" placeholder="输入你的问题...">
+                        <button id="send-chat-btn">发送</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 设置模块 -->
+            <div id="settings-view" class="view">
+                <h2>AI 设置</h2>
+                <div class="setting-item">
+                    <label for="api-key-input">你的 AI API Key:</label>
+                    <input type="password" id="api-key-input" placeholder="请在这里输入你的密钥">
+                    <p class="hint">密钥将安全地保存在你的本地浏览器中，不会上传到任何服务器。</p>
+                </div>
+                <div class="setting-item">
+                    <label for="api-endpoint-input">API Endpoint:</label>
+                    <input type="text" id="api-endpoint-input">
+                     <p class="hint">默认是 OpenAI, 你可以换成其他兼容的API地址 (例如 Google, Groq, etc.)。</p>
+                </div>
+                 <div class="setting-item">
+                    <label for="model-name-input">模型名称 (Model Name):</label>
+                    <input type="text" id="model-name-input">
+                     <p class="hint">例如：gpt-4o, gemma-7b-it, etc.</p>
+                </div>
+                <button id="save-settings-btn" class="primary">保存AI设置</button>
+
+                <h2 style="margin-top: 40px;">数据管理与同步</h2>
+                <div class="setting-item">
+                    <label>笔记自动同步</label>
+                     <button id="link-file-btn">链接本地文件</button>
+                     <div id="file-sync-status">状态：未链接本地文件。笔记仅保存在浏览器中。</div>
+                     <p class="hint">链接一个本地 .json 文件后，所有笔记将自动保存到该文件，实现永久保存。</p>
+                </div>
+                <div class="setting-item">
+                    <label>手动操作</label>
+                     <button id="import-notes-btn">导入笔记</button>
+                     <button id="export-notes-btn">导出笔记</button>
+                     <p class="hint">从 JSON 文件导入笔记，或将当前所有笔记导出为 JSON 文件进行手动备份。</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', () => {
+        // --- IndexedDB 简易包装 ---
+        const db = {
+            _db: null,
+            init() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('LocalAssistantDB', 1);
+                    request.onupgradeneeded = event => {
+                        const db = event.target.result;
+                        if (!db.objectStoreNames.contains('keyval')) {
+                            db.createObjectStore('keyval');
+                        }
+                    };
+                    request.onsuccess = event => {
+                        this._db = event.target.result;
+                        resolve();
+                    };
+                    request.onerror = event => reject(event.target.error);
+                });
+            },
+            get(key) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this._db.transaction(['keyval'], 'readonly');
+                    const store = transaction.objectStore('keyval');
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+            set(key, value) {
+                return new Promise((resolve, reject) => {
+                    const transaction = this._db.transaction(['keyval'], 'readwrite');
+                    const store = transaction.objectStore('keyval');
+                    const request = store.put(value, key);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+            }
+        };
+
+        // --- 元素获取 ---
+        const navButtons = {
+            notes: document.getElementById('nav-notes'),
+            chat: document.getElementById('nav-chat'),
+            settings: document.getElementById('nav-settings'),
+        };
+        const views = {
+            notes: document.getElementById('notes-view'),
+            chat: document.getElementById('chat-view'),
+            settings: document.getElementById('settings-view'),
+        };
+
+        const noteInput = document.getElementById('note-input');
+        const saveNoteBtn = document.getElementById('save-note-btn');
+        const notesList = document.getElementById('notes-list');
+
+        const chatHistory = document.getElementById('chat-history');
+        const chatInput = document.getElementById('chat-input');
+        const sendChatBtn = document.getElementById('send-chat-btn');
+
+        const apiKeyInput = document.getElementById('api-key-input');
+        const apiEndpointInput = document.getElementById('api-endpoint-input');
+        const modelNameInput = document.getElementById('model-name-input');
+        const saveSettingsBtn = document.getElementById('save-settings-btn');
+        
+        const linkFileBtn = document.getElementById('link-file-btn');
+        const fileSyncStatus = document.getElementById('file-sync-status');
+        const importNotesBtn = document.getElementById('import-notes-btn');
+        const exportNotesBtn = document.getElementById('export-notes-btn');
+        
+        // --- 全局状态变量 ---
+        let settings = {
+            apiKey: '', apiEndpoint: 'https://api.openai.com/v1/chat/completions', modelName: 'gpt-4o'
+        };
+        let notes = [];
+        let fileHandle = null;
+
+        // --- 导航逻辑 ---
+        function switchView(viewName) {
+            Object.values(views).forEach(v => v.classList.remove('active'));
+            Object.values(navButtons).forEach(b => b.classList.remove('active'));
+            views[viewName].classList.add('active');
+            navButtons[viewName].classList.add('active');
+        }
+        Object.keys(navButtons).forEach(key => {
+            navButtons[key].addEventListener('click', () => switchView(key));
+        });
+
+        // --- 文件同步逻辑 ---
+        async function updateFileSyncStatus() {
+            if (fileHandle) {
+                fileSyncStatus.textContent = `状态：已链接到文件 "${fileHandle.name}"，笔记将自动保存。`;
+                fileSyncStatus.classList.add('linked');
+            } else {
+                fileSyncStatus.textContent = '状态：未链接本地文件。笔记仅保存在浏览器中。';
+                fileSyncStatus.classList.remove('linked');
+            }
+        }
+
+        async function linkFile() {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: 'my-notes.json',
+                    types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }]
+                });
+                fileHandle = handle;
+                await db.set('fileHandle', fileHandle);
+                await saveNotesToFile(); // Immediately save current notes to the new file
+                updateFileSyncStatus();
+            } catch (err) {
+                console.error('用户取消或链接文件失败:', err);
+            }
+        }
+        linkFileBtn.addEventListener('click', linkFile);
+
+        async function saveNotesToFile() {
+            if (!fileHandle) return;
+            try {
+                const writable = await fileHandle.createWritable();
+                await writable.write(JSON.stringify(notes, null, 2));
+                await writable.close();
+            } catch (err) {
+                console.error('自动保存到文件失败:', err);
+                fileHandle = null; // Reset handle if permission is lost
+                db.set('fileHandle', null);
+                updateFileSyncStatus();
+                alert('保存到文件失败，可能文件权限已丢失，请重新链接文件。');
+            }
+        }
+        
+        async function loadNotesFromFile() {
+            if (!fileHandle) return false;
+            try {
+                const file = await fileHandle.getFile();
+                const content = await file.text();
+                if (content) {
+                    notes = JSON.parse(content);
+                }
+                return true;
+            } catch (err) {
+                console.error('从文件加载笔记失败:', err);
+                return false;
+            }
+        }
+
+        // --- 笔记逻辑 ---
+        function renderNotes() {
+            notesList.innerHTML = '';
+            notes.sort((a, b) => b.timestamp - a.timestamp);
+            notes.forEach(note => {
+                const card = document.createElement('div');
+                card.className = 'note-card';
+                const content = document.createElement('div');
+                content.className = 'content';
+                content.innerHTML = note.text
+                    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+                    .replace(/#([\p{L}\p{N}_]+)/gu, '<span class="tag">#$1</span>');
+                const meta = document.createElement('div');
+                meta.className = 'meta';
+                meta.textContent = new Date(note.timestamp).toLocaleString();
+                card.appendChild(content);
+                card.appendChild(meta);
+                notesList.appendChild(card);
+            });
+        }
+
+        function saveNote() {
+            const text = noteInput.value.trim();
+            if (text) {
+                notes.push({ text: text, timestamp: Date.now() });
+                localStorage.setItem('notes', JSON.stringify(notes)); // Keep localStorage as a fallback
+                noteInput.value = '';
+                renderNotes();
+                saveNotesToFile(); // Auto-save to file
+            }
+        }
+        saveNoteBtn.addEventListener('click', saveNote);
+        noteInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveNote();
+        });
+
+        // --- 数据导入/导出 ---
+        function exportNotes() {
+            const blob = new Blob([JSON.stringify(notes, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `notes-backup-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        exportNotesBtn.addEventListener('click', exportNotes);
+
+        async function importNotes() {
+            try {
+                const [handle] = await window.showOpenFilePicker({
+                     types: [{ description: 'JSON Files', accept: { 'application/json': ['.json'] } }]
+                });
+                const file = await handle.getFile();
+                const content = await file.text();
+                const importedNotes = JSON.parse(content);
+                if (Array.isArray(importedNotes) && confirm(`即将导入 ${importedNotes.length} 条笔记。这将覆盖您当前的笔记，是否继续？`)) {
+                    notes = importedNotes;
+                    renderNotes();
+                    localStorage.setItem('notes', JSON.stringify(notes));
+                    saveNotesToFile();
+                }
+            } catch (err) {
+                console.error('导入失败:', err);
+            }
+        }
+        importNotesBtn.addEventListener('click', importNotes);
+
+        // --- 设置与AI逻辑 (基本无变化) ---
+        function saveSettings() {
+            settings = {
+                apiKey: apiKeyInput.value.trim(),
+                apiEndpoint: apiEndpointInput.value.trim(),
+                modelName: modelNameInput.value.trim()
+            };
+            localStorage.setItem('aiSettings', JSON.stringify(settings));
+            alert('AI设置已保存！');
+        }
+        saveSettingsBtn.addEventListener('click', saveSettings);
+
+        function loadSettings() {
+            const stored = localStorage.getItem('aiSettings');
+            if (stored) settings = JSON.parse(stored);
+            apiKeyInput.value = settings.apiKey || '';
+            apiEndpointInput.value = settings.apiEndpoint || 'https://api.openai.com/v1/chat/completions';
+            modelNameInput.value = settings.modelName || 'gpt-4o';
+        }
+
+        function addMessageToHistory(text, sender, isThinking = false) {
+            const div = document.createElement('div');
+            div.className = `message ${sender} ${isThinking ? 'thinking' : ''}`;
+            div.textContent = text;
+            chatHistory.appendChild(div);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+            return div;
+        }
+
+        async function handleSendMessage() {
+            const userMessage = chatInput.value.trim();
+            if (!userMessage || !settings.apiKey) {
+                if (!settings.apiKey) alert('请先在“设置”中输入您的API Key！');
+                return;
+            }
+            addMessageToHistory(userMessage, 'user');
+            chatInput.value = '';
+            sendChatBtn.disabled = true;
+            const thinkingMsg = addMessageToHistory('AI 正在思考', 'bot', true);
+            try {
+                const response = await fetch(settings.apiEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${settings.apiKey}` },
+                    body: JSON.stringify({
+                        model: settings.modelName, messages: [{ role: "user", content: userMessage }], stream: false
+                    })
+                });
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error ? err.error.message : `HTTP Error ${response.status}`);
+                }
+                const data = await response.json();
+                thinkingMsg.textContent = data.choices[0].message.content;
+                thinkingMsg.classList.remove('thinking');
+            } catch (error) {
+                thinkingMsg.textContent = `出错了: ${error.message}`;
+                thinkingMsg.classList.remove('thinking');
+            } finally {
+                sendChatBtn.disabled = false;
+                chatInput.focus();
+            }
+        }
+        sendChatBtn.addEventListener('click', handleSendMessage);
+        chatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleSendMessage(); });
+
+        // --- 应用初始化 ---
+        async function initializeApp() {
+            await db.init();
+            loadSettings();
+
+            // 优先从文件句柄加载
+            fileHandle = await db.get('fileHandle');
+            if(fileHandle){
+                 // 浏览器可能会在重新启动后撤销权限，需要请求权限
+                if (await fileHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+                    if (await fileHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') {
+                        fileHandle = null;
+                        db.set('fileHandle', null);
+                        alert('无法获取文件权限，自动同步已禁用。请重新链接文件。');
+                    }
+                }
+            }
+           
+            const loadedFromFile = await loadNotesFromFile();
+            if (!loadedFromFile) {
+                // 如果文件加载失败，回退到localStorage
+                notes = JSON.parse(localStorage.getItem('notes') || '[]');
+            }
+            
+            renderNotes();
+            updateFileSyncStatus();
+            switchView('notes');
+        }
+        
+        initializeApp();
+    });
+    </script>
+</body>
+</html>
+
