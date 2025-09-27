@@ -1,5 +1,31 @@
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 已经可以使用角色了
 
+
+```py
 from ai_client import send_ai_request 
 from prompt import prompt   # 注意：导入的是实例 prompt
 from ai_voiice_clean import clean_content
@@ -37,3 +63,4 @@ else:
     print("\n\n")
     print(" 干净："+content)
     # print(response)
+```
