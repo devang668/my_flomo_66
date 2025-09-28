@@ -1,28 +1,96 @@
+##
+
+```py
+
+```
+##
+
+```py
+
+```
+##
+
+```py
+
+```
+
+##
+
+```py
+
+```
+##
+
+```py
+
+```
+##
+
+```py
+
+```
+
+##
+
+```py
+
+```
+
+##
+
+```py
+
+```
+
+
+##
+
+```py
+
+```
+
+
+## 连续对话了
+```py
+from ai_client import send_ai_request
+from prompt import prompt
+from ai_voiice_clean import clean_content
+
+choose = ["qian-niu-doubao", r"D:\25515\web_AI_chat\wonderful_wise\test0927\memory\online\mem0\ai_providers.json"]
+
+scene = "luoli"
+messages = [
+    {"role": "system", "content": prompt.language},
+    {"role": "system", "content": getattr(prompt.role, scene)},
+    {"role": "user", "content": "Hello!,天空在下雨？我的心也是阴郁的"}
+]
+
+print("开始对话 (输入 'quit' 或 'exit' 退出):")
+
+while True:
+    user_input = input("你: ")
+    if user_input.lower() in ['quit', 'exit']:
+        print("对话结束")
+        break
+
+    messages.append({"role": "user", "content": user_input})
+    response = send_ai_request(choose, messages)
+
+    if isinstance(response, str):
+        print("Error occurred:", response)
+        continue
+
+    ai_content = response["choices"][0]["message"]["content"]
+    print("AI:", ai_content)
+    messages.append({"role": "assistant", "content": ai_content})
+
+
+```
 
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# 已经可以使用角色了
+## 已经可以使用角色了
 
 
 ```py
