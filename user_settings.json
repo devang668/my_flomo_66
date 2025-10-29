@@ -1,0 +1,12 @@
+{
+  "symbol": "BTCUSDT",
+  "check_interval": 15,
+  "email": {
+    "sender": "",
+    "password": "",
+    "receiver": "",
+    "smtp_server": "",
+    "smtp_port": 465
+  },
+  "rules": []
+}
